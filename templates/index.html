@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Syscall Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+        async function openFile() {
+            const username = document.getElementById("username").value;
+            const filename = document.getElementById("filename").value;
+
+            const response = await fetch("/open_file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, filename })
+            });
+            const data = await response.json();
+            alert(data.message);
+        }
+
+        async function readFile() {
+            const filename = document.getElementById("filename").value;
+
+            const response = await fetch("/read_file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename })
+            });
+            const data = await response.json();
+            document.getElementById("output").innerText = data.content || data.message;
+        }
+
+        async function writeFile() {
+            const filename = document.getElementById("filename").value;
+            const content = document.getElementById("content").value;
+
+            const response = await fetch("/write_file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename, content })
+            });
+            const data = await response.json();
+            alert(data.message);
+        }
+
+        function showColumn() {
+            var column = document.getElementById("column");
+            column.style.display = "block";  // Make it visible
+            column.scrollIntoView({ behavior: "smooth" });  // Scroll down
+        }
+
+    </script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">Syscall Interface</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Secure & Simplified Syscall Interface</h1>
+        <p>Enhancing system security with a modern syscall layer.</p>
+        <button class="btn" onclick="showColumn()">Get Started</button>
+    </section>
+
+    <!-- File Operations -->
+    <section id="column" class="sec">
+        <h2 class="h2">File Operations</h2>
+        <label>Username:</label>
+        <input type="text" id="username"><br><br>
+
+        <label>Filename:</label>
+        <input type="text" id="filename"><br><br>
+
+        <button class="fbtn" onclick="openFile()">Open File</button>
+        <button class="fbtn" onclick="readFile()">Read File</button>
+        <button class="fbtn" onclick="writeFile()">Write to File</button>
+
+        <br><br>
+        <textarea class="textarea" id="content" placeholder="Enter content to write"></textarea>
+        <h3>File Output:</h3>
+        <pre id="output"></pre>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <h2>Key Features</h2>
+        <ul>
+            <li>Simplified interface for easier integration</li>
+            <li>Input validation to prevent attacks</li>
+            <li>Privilege-based access control</li>
+            <li>Sandboxing to isolate processes</li>
+            <li>Secure logging and monitoring</li>
+        </ul>
+    </section>
+ 
+    <!-- Architecture Section -->
+  <section id="architecture" class="section">
+    <h2>System Architecture</h2>
+    <div class="ap"><p>The secure syscall interface consists of a kernel layer and a user-space library. The kernel layer validates inputs, checks privileges, and manages access.</p></div>
+    <div class="diagram"></div>
+  </section>
+
+</body>
+</html>
