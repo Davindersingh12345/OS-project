@@ -6,52 +6,130 @@
     <title>Secure Syscall Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
     <script>
-        async function openFile() {
-            const username = document.getElementById("username").value;
-            const filename = document.getElementById("filename").value;
+        async function handleRequest(endpoint, body, callback = null) {
+    showLoading(true); // Show loading indicator
 
-            const response = await fetch("/open_file", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, filename })
-            });
-            const data = await response.json();
-            alert(data.message);
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+
+        const data = await response.json();
+        showMessage(data.message, data.status === "success" ? "success" : "danger");
+
+        if (data.status === "success" && callback) callback(data);
+    } catch (error) {
+        showMessage("Server error! Please try again.", "danger");
+    } finally {
+        showLoading(false); // Hide loading indicator
+    }
+}
+
+function showMessage(message, type) {
+    const messageDiv = document.getElementById("message");
+    messageDiv.className = `alert alert-${type} text-center fw-bold`;
+    messageDiv.innerText = message;
+    messageDiv.style.display = "block";
+    setTimeout(() => { messageDiv.style.display = "none"; }, 4000);
+}
+
+function getInputValues(requireContent = false) {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const filename = document.getElementById("filename").value.trim();
+    const content = requireContent ? document.getElementById("content").value.trim() : null;
+
+    if (!username || !password || !filename || (requireContent && !content)) {
+        showMessage("⚠️ All fields are required!", "danger");
+        return null;
+    }
+
+    return { username, password, filename, content };
+}
+
+async function setPassword() {
+    const input = getInputValues();
+    if (input) await handleRequest("/set_password", input);
+}
+
+async function openFile() {
+    const input = getInputValues();
+    if (input) await handleRequest("/open_file", input);
+}
+
+async function readFile() {
+    const input = getInputValues();
+    if (input) {
+        await handleRequest("/read_file", input, (data) => {
+            document.getElementById("output").innerText = data.content || "File is empty.";
+        });
+    }
+}
+
+async function writeFile() {
+    const input = getInputValues(true);
+
+    if (!input) {
+        // If content is missing, highlight textarea and scroll to it
+        const contentBox = document.getElementById("content");
+        contentBox.classList.add("border-danger");
+        contentBox.focus();
+        contentBox.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        setTimeout(() => contentBox.classList.remove("border-danger"), 2000);
+        return;
+    }
+
+    await handleRequest("/write_file", input);
+}
+
+async function deleteFile() {
+    const input = getInputValues();
+    if (input) {
+        await handleRequest("/delete_file", input, () => {
+            document.getElementById("output").innerText = "";
+            listFiles(); // Refresh file list
+        });
+    }
+}
+
+async function listFiles() {
+    showLoading(true);
+    try {
+        const response = await fetch("/list_files", { method: "GET" });
+        const data = await response.json();
+
+        if (data.status === "success") {
+            const fileListEl = document.getElementById("fileList");
+            fileListEl.innerHTML = data.files.length
+                ? data.files.map(file => `<li class="list-group-item">${file}</li>`).join("")
+                : "<p class='text-muted'>No files available.</p>";
+        } else {
+            showMessage(data.message, "danger");
         }
+    } catch (error) {
+        showMessage("⚠️ Failed to fetch files.", "danger");
+    } finally {
+        showLoading(false);
+    }
+}
 
-        async function readFile() {
-            const filename = document.getElementById("filename").value;
+function showLoading(isLoading) {
+    const buttons = document.querySelectorAll("button");
+    buttons.forEach(btn => btn.disabled = isLoading);
+}
 
-            const response = await fetch("/read_file", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename })
-            });
-            const data = await response.json();
-            document.getElementById("output").innerText = data.content || data.message;
-        }
+function showColumn() {
+    const column = document.getElementById("column");
+    column.style.display = "block";
+    column.scrollIntoView({ behavior: "smooth" });
+}
 
-        async function writeFile() {
-            const filename = document.getElementById("filename").value;
-            const content = document.getElementById("content").value;
-
-            const response = await fetch("/write_file", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename, content })
-            });
-            const data = await response.json();
-            alert(data.message);
-        }
-
-        function showColumn() {
-            var column = document.getElementById("column");
-            column.style.display = "block";  // Make it visible
-            column.scrollIntoView({ behavior: "smooth" });  // Scroll down
-        }
-
-    </script>
+    </script> 
 </head>
 <body>
     <!-- Navbar -->
@@ -68,26 +146,44 @@
     <section class="hero">
         <h1>Secure & Simplified Syscall Interface</h1>
         <p>Enhancing system security with a modern syscall layer.</p>
-        <button class="btn" onclick="showColumn()">Get Started</button>
+        <button class="btn1" onclick="showColumn()">Get Started</button>
     </section>
 
     <!-- File Operations -->
     <section id="column" class="sec">
-        <h2 class="h2">File Operations</h2>
-        <label>Username:</label>
-        <input type="text" id="username"><br><br>
+        <h1 class="text-center">Secure File Manager</h1>
 
-        <label>Filename:</label>
-        <input type="text" id="filename"><br><br>
+        <div id="message" class="alert" style="display: none;"></div>
+        
+        <div class="card">
+            <label>Username:</label>
+            <input type="text" id="username" class="form-control">
+            
+            <label>Password:</label>
+            <input type="password" id="password" class="form-control">
+            
+            <label>Filename:</label>
+            <input type="text" id="filename" class="form-control">
+            <div class="button-group">
+                <button class="btn btn-info" onclick="setPassword()">Set Password</button>
+                <button class="btn btn-primary" onclick="openFile()">Open File</button>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="readFile()">Read File</button>
+                <button class="btn btn-success" onclick="writeFile()">Write to File</button>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-danger" onclick="deleteFile()">Delete File</button>
+                <button class="btn btn-dark" onclick="listFiles()">List Files</button>
+            </div>
+        </div>
 
-        <button class="fbtn" onclick="openFile()">Open File</button>
-        <button class="fbtn" onclick="readFile()">Read File</button>
-        <button class="fbtn" onclick="writeFile()">Write to File</button>
+        <textarea id="content" class="form-control" placeholder="Enter content to write"></textarea>
 
-        <br><br>
-        <textarea class="textarea" id="content" placeholder="Enter content to write"></textarea>
         <h3>File Output:</h3>
-        <pre id="output"></pre>
+        <pre id="output" class="p-3 border bg-light"></pre>
+        <h3>File List:</h3>
+        <pre id="fileList" class="p-3 border bg-light"></pre>
     </section>
 
     <!-- Features Section -->
@@ -97,17 +193,36 @@
             <li>Simplified interface for easier integration</li>
             <li>Input validation to prevent attacks</li>
             <li>Privilege-based access control</li>
-            <li>Sandboxing to isolate processes</li>
+            <li>User friendly system call interface</li>
             <li>Secure logging and monitoring</li>
         </ul>
     </section>
  
     <!-- Architecture Section -->
-  <section id="architecture" class="section">
-    <h2>System Architecture</h2>
-    <div class="ap"><p>The secure syscall interface consists of a kernel layer and a user-space library. The kernel layer validates inputs, checks privileges, and manages access.</p></div>
-    <div class="diagram"></div>
+    <section id="architecture" class="section">
+        <h2>System Architecture</h2>
+        <div class="ap">
+            <p>The secure syscall interface consists of a kernel layer and a user-space library. The kernel layer validates inputs, checks privileges, and manages access.</p>
+        </div>
+        <img src="{{ url_for('static', filename='System Architecture.png') }}" alt="System Architecture" class="diagram">
+    </section>
+
+    <!-- Contact Section -->
+  <section id="contact" class="section">
+    <h2>Contact</h2>
+    <div class="ap">
+        <p>For more information or to contribute to the project:</p>
+    </div>
+    <ul>
+      <li><a href="https://github.com/Suharshit/Os_Group_Project.git">GitHub Repository</a></li>
+      <li><a href="mailto:your-email@example.com">Email</a></li>
+    </ul>
   </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    © 2025 Secure Syscall Interface | All Rights Reserved
+  </footer>
 
 </body>
 </html>
